@@ -6,10 +6,10 @@ import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { WidgetInstance, WidgetKind, DashboardState, GridPosition } from '@/types/dashboard'
 import { getWidgetDefinition } from '@/components/dashboard/registry'
-import { 
-  placeWithoutOverlap, 
-  clampToBounds, 
-  toRect, 
+import {
+  placeWithoutOverlap,
+  clampToBounds,
+  toRect,
   fromRect,
   getGridSpec,
   Breakpoint,
@@ -29,19 +29,21 @@ interface DashboardStore {
   instances: WidgetInstance[]
   currentBreakpoint: Breakpoint
   arrangeMode: boolean
-  
+
   // Actions
   add: (kind: WidgetKind) => void
   remove: (id: string) => void
   move: (id: string, position: GridPosition) => void
+  updateLayout: (layoutItems: Array<{ i: string; x: number; y: number; w: number; h: number }>) => void
+  compact: () => void
   resize: (id: string, size: { w: number; h: number }) => void
   resizeTo: (id: string, size: WidgetSize) => void
   cycleSize: (id: string) => void
-  
+
   // Grid management
   setBreakpoint: (breakpoint: Breakpoint) => void
   toggleArrange: () => void
-  
+
   // Persistence
   load: () => void
   save: () => void
@@ -58,7 +60,7 @@ function getDefaultLayout(): WidgetInstance[] {
     { id: 'in-progress', kind: 'inProgress', x: 1, y: 0, w: 1, h: 1 },
     { id: 'overdue', kind: 'overdue', x: 2, y: 0, w: 1, h: 1 },
     { id: 'resolved-today', kind: 'resolvedToday', x: 3, y: 0, w: 1, h: 1 },
-    
+
     // Large widgets below - fixed positioning to prevent overlaps
     { id: 'team-inbox', kind: 'teamInbox', x: 0, y: 1, w: 6, h: 3 },      // Wide widget
     { id: 'my-work-queue', kind: 'myWorkQueue', x: 6, y: 1, w: 3, h: 2 }, // Medium widget
@@ -70,26 +72,26 @@ function getDefaultLayout(): WidgetInstance[] {
  * Find optimal position for a new widget
  */
 function findOptimalPosition(
-  instances: WidgetInstance[], 
-  w: number, 
-  h: number, 
+  instances: WidgetInstance[],
+  w: number,
+  h: number,
   spec: GridSpec
 ): GPos {
   const rects = instances.map(toRect)
-  
+
   // Try positions starting from top-left
   for (let y = 0; y < 20; y++) {
     for (let x = 0; x <= spec.cols - w; x++) {
       const testRect = { id: 'temp', x, y, w, h }
       const position = placeWithoutOverlap(rects, testRect, spec)
-      
+
       // If we get back the exact position we tested, it's available
       if (position.x === x && position.y === y) {
         return position
       }
     }
   }
-  
+
   // Fallback: place at bottom
   const maxY = Math.max(0, ...rects.map(r => r.y + r.h))
   return clampToBounds({ x: 0, y: maxY }, { w, h }, spec)
@@ -120,19 +122,19 @@ export const useDashboardStore = create<DashboardStore>()(
     add: (kind: WidgetKind) => {
       const { instances, currentBreakpoint } = get()
       const spec = getGridSpec(currentBreakpoint)
-      
+
       // Default discrete size: M
       const defaultSize: WidgetSize = 'M'
       const dims = getSizeFor(currentBreakpoint, defaultSize)
 
       // Find optimal position using grid algorithms
       const position = findOptimalPosition(
-        instances, 
-        dims.w, 
-        dims.h, 
+        instances,
+        dims.w,
+        dims.h,
         spec
       )
-      
+
       const newWidget: WidgetInstance = {
         id: `${kind}-${Date.now()}`,
         kind,
@@ -153,7 +155,7 @@ export const useDashboardStore = create<DashboardStore>()(
       set(state => ({
         instances: state.instances.filter(w => w.id !== id)
       }))
-      
+
       // Compact after removing to fill gaps
       get().compact()
     },
@@ -164,15 +166,15 @@ export const useDashboardStore = create<DashboardStore>()(
       if (!widget) return
 
       const spec = getGridSpec(currentBreakpoint)
-      
+
       // Clamp to bounds
       const clamped = clampToBounds(position, widget, spec)
-      
+
       // Get other widgets as rects
       const otherRects = instances
         .filter(w => w.id !== id)
         .map(toRect)
-      
+
       // Find collision-free position
       const finalPos = placeWithoutOverlap(
         otherRects,
@@ -182,10 +184,72 @@ export const useDashboardStore = create<DashboardStore>()(
 
       // Update position
       set(state => ({
-        instances: state.instances.map(w => 
+        instances: state.instances.map(w =>
           w.id === id ? { ...w, x: finalPos.x, y: finalPos.y } : w
         )
       }))
+      get().save()
+    },
+
+    updateLayout: (layoutItems: Array<{ i: string; x: number; y: number; w: number; h: number }>) => {
+      set(state => ({
+        instances: state.instances.map(inst => {
+          const layoutItem = layoutItems.find(item => item.i === inst.id)
+          if (layoutItem) {
+            return {
+              ...inst,
+              x: layoutItem.x,
+              y: layoutItem.y,
+              w: layoutItem.w,
+              h: layoutItem.h,
+            }
+          }
+          return inst
+        })
+      }))
+      get().save()
+    },
+
+    // Compact widgets to fill gaps
+    compact: () => {
+      const { instances, currentBreakpoint } = get()
+      const spec = getGridSpec(currentBreakpoint)
+
+      // Sort instances by y position, then by x position
+      const sorted = [...instances].sort((a, b) => {
+        if (a.y !== b.y) return a.y - b.y
+        return a.x - b.x
+      })
+
+      let currentY = 0
+      const compacted = sorted.map(inst => {
+        // Find the lowest position where this widget can fit
+        let newY = currentY
+        let attempts = 0
+        const maxAttempts = 20
+
+        while (attempts < maxAttempts) {
+          const testRect = { id: inst.id, x: inst.x, y: newY, w: inst.w, h: inst.h }
+          const otherRects = sorted
+            .filter(w => w.id !== inst.id)
+            .map(toRect)
+
+          const collision = otherRects.some(other => intersect(testRect, other))
+
+          if (!collision) {
+            break
+          }
+
+          newY++
+          attempts++
+        }
+
+        currentY = newY + inst.h
+
+        return { ...inst, y: newY }
+      })
+
+      set({ instances: compacted })
       get().save()
     },
 
@@ -195,7 +259,7 @@ export const useDashboardStore = create<DashboardStore>()(
       if (!widget) return
 
       const spec = getGridSpec(currentBreakpoint)
-      
+
       // Snap to nearest discrete size label
       const label = mapToNearestSize(currentBreakpoint, { w: size.w, h: size.h })
       const { w, h } = getSizeFor(currentBreakpoint, label)
@@ -204,14 +268,14 @@ export const useDashboardStore = create<DashboardStore>()(
       const otherRects = instances
         .filter(w => w.id !== id)
         .map(toRect)
-      
+
       // Find position that accommodates new size
       const resizedRect = { ...toRect(widget), w, h }
       const finalPos = placeWithoutOverlap(otherRects, resizedRect, spec)
 
       // Update widget with new size and position
       set(state => ({
-        instances: state.instances.map(inst => 
+        instances: state.instances.map(inst =>
           inst.id === id ? { ...inst, x: finalPos.x, y: finalPos.y, w, h, size: label } : inst
         )
       }))
@@ -228,7 +292,7 @@ export const useDashboardStore = create<DashboardStore>()(
       const resizedRect = { ...toRect(widget), w, h }
       const finalPos = placeWithoutOverlap(otherRects, resizedRect, spec)
       set(state => ({
-        instances: state.instances.map(inst => 
+        instances: state.instances.map(inst =>
           inst.id === id ? { ...inst, x: finalPos.x, y: finalPos.y, w, h, size: label } : inst
         )
       }))

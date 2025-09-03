@@ -33,7 +33,7 @@ export default function RootLayout({
             <div className="flex h-screen">
               <aside className="w-64 border-r bg-muted/10">
                 <div className="p-6">
-                  <h2 className="text-lg font-semibold">Helpdesk</h2>
+                  <div className="h-6"></div>
                 </div>
                 <MainNav />
               </aside>

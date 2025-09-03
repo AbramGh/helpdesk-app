@@ -1,0 +1,154 @@
+/* Dashboard Grid Layout Styles */
+.layout {
+    min-height: 100vh;
+}
+
+.widget-container {
+    height: 100%;
+    width: 100%;
+}
+
+/* React Grid Layout Overrides */
+.react-grid-item {
+    transition: all 200ms ease;
+    transition-property: left, top, width, height;
+}
+
+.react-grid-item.cssTransforms {
+    transition-property: transform, width, height;
+}
+
+.react-grid-item.resizing {
+    z-index: 1;
+    will-change: width, height;
+}
+
+.react-grid-item.react-draggable-dragging {
+    transition: none;
+    z-index: 3;
+    will-change: transform;
+}
+
+.react-grid-item.react-grid-placeholder {
+    background: hsl(var(--primary) / 0.1);
+    border: 2px dashed hsl(var(--primary));
+    border-radius: var(--radius);
+    transition-duration: 100ms;
+    z-index: 2;
+    user-select: none;
+    opacity: 0.8;
+}
+
+.react-grid-item>.react-resizable-handle {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    bottom: 0;
+    right: 0;
+    cursor: se-resize;
+    z-index: 10;
+}
+
+.react-grid-item>.react-resizable-handle::after {
+    content: "";
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 5px;
+    height: 5px;
+    border-right: 2px solid rgba(0, 0, 0, 0.4);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.4);
+}
+
+/* Drag handle styles */
+.drag-handle {
+    cursor: move;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.drag-handle:hover {
+    opacity: 1;
+}
+
+/* Widget card styles */
+.widget-container .card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.widget-container .card-header {
+    flex-shrink: 0;
+}
+
+.widget-container .card-content {
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .react-grid-item {
+        margin-bottom: 16px;
+    }
+}
+
+/* Force desktop layout at all screen sizes */
+.layout {
+    min-width: 1200px !important;
+}
+
+.react-grid-layout {
+    min-width: 1200px !important;
+}
+
+/* Ensure widgets maintain their size */
+.widget-container {
+    min-width: 200px !important;
+}
+
+/* Prevent layout shifts on smaller screens */
+@media (max-width: 1400px) {
+    .layout {
+        overflow-x: auto;
+    }
+
+    .react-grid-layout {
+        overflow-x: auto;
+    }
+}
+
+/* Dialog width overrides for Add Widget dialog */
+[data-radix-dialog-content] {
+    width: 95vw !important;
+    max-width: none !important;
+    height: 90vh !important;
+    max-height: none !important;
+    border-radius: 12px !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Ensure dialog content uses full width */
+[data-radix-dialog-content]>div {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+/* Modern scrollbar styling */
+[data-radix-dialog-content] ::-webkit-scrollbar {
+    width: 6px;
+}
+
+[data-radix-dialog-content] ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+[data-radix-dialog-content] ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+}
+
+[data-radix-dialog-content] ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+}
