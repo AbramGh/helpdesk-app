@@ -1,281 +1,324 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Filter, Plus, MoreHorizontal, Clock, AlertTriangle, CheckCircle, User, Calendar } from "lucide-react"
+import { Search, Filter, Plus, MoreHorizontal, Clock, AlertTriangle, CheckCircle, User, Calendar, MessageSquare } from "lucide-react"
 import Link from "next/link"
+import { CategoryBadge } from "@/components/categories/category-badge"
 
-const mockIssues = [
-  {
-    id: "HD-001",
-    title: "Login page not loading for some users",
-    description: "Multiple users reporting that the login page fails to load completely...",
-    status: "open",
-    priority: "high",
-    assignee: { name: "Sarah Chen", avatar: "/placeholder.svg?height=32&width=32" },
-    reporter: { name: "John Doe", avatar: "/placeholder.svg?height=32&width=32" },
-    createdAt: "2 hours ago",
-    updatedAt: "1 hour ago",
-    commentsCount: 3,
-    organization: "Acme Corp",
-  },
-  {
-    id: "HD-002",
-    title: "Email notifications not being sent",
-    description: "Users are not receiving email notifications for new messages...",
-    status: "in-progress",
-    priority: "medium",
-    assignee: { name: "Mike Johnson", avatar: "/placeholder.svg?height=32&width=32" },
-    reporter: { name: "Jane Smith", avatar: "/placeholder.svg?height=32&width=32" },
-    createdAt: "4 hours ago",
-    updatedAt: "30 minutes ago",
-    commentsCount: 7,
-    organization: "TechStart Inc",
-  },
-  {
-    id: "HD-003",
-    title: "Dashboard loading slowly",
-    description: "The main dashboard takes more than 10 seconds to load...",
-    status: "open",
-    priority: "low",
-    assignee: null,
-    reporter: { name: "Bob Wilson", avatar: "/placeholder.svg?height=32&width=32" },
-    createdAt: "1 day ago",
-    updatedAt: "1 day ago",
-    commentsCount: 1,
-    organization: "Acme Corp",
-  },
-]
-
-const priorityColors = {
-  high: "bg-red-100 text-red-800 border-red-200",
-  medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  low: "bg-green-100 text-green-800 border-green-200",
+interface Category {
+  id: string
+  name: string
+  prefix: string
+  color: string | null
 }
 
-const statusColors = {
-  open: "bg-blue-100 text-blue-800 border-blue-200",
-  "in-progress": "bg-yellow-100 text-yellow-800 border-yellow-200",
-  done: "bg-green-100 text-green-800 border-green-200",
-}
-
-const statusIcons = {
-  open: Clock,
-  "in-progress": AlertTriangle,
-  done: CheckCircle,
+interface Ticket {
+  id: string
+  number: string
+  title: string
+  description: string | null
+  status: string
+  priority: string
+  createdAt: string
+  updatedAt: string
+  author: {
+    id: string
+    name: string | null
+    email: string
+  }
+  category: Category | null
+  _count: {
+    comments: number
+  }
 }
 
 export default function IssuesPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [priorityFilter, setPriorityFilter] = useState("all")
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  const [priorityFilter, setPriorityFilter] = useState<string>("all")
 
-  const filteredIssues = mockIssues.filter((issue) => {
-    const matchesSearch =
-      issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      issue.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === "all" || issue.status === statusFilter
-    const matchesPriority = priorityFilter === "all" || issue.priority === priorityFilter
+  useEffect(() => {
+    fetchTickets()
+    fetchCategories()
+  }, [])
 
-    return matchesSearch && matchesStatus && matchesPriority
+  const fetchTickets = async () => {
+    try {
+      const params = new URLSearchParams()
+      if (statusFilter !== "all") params.set("status", statusFilter)
+      if (categoryFilter !== "all") params.set("categoryId", categoryFilter)
+      
+      const response = await fetch(`/api/tickets?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        setTickets(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch tickets:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories')
+      if (response.ok) {
+        const data = await response.json()
+        setCategories(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error)
+    }
+  }
+
+  useEffect(() => {
+    fetchTickets()
+  }, [statusFilter, categoryFilter])
+
+  const getStatusIcon = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'open':
+        return <AlertTriangle className="h-4 w-4" />
+      case 'in_progress':
+        return <Clock className="h-4 w-4" />
+      case 'resolved':
+      case 'closed':
+        return <CheckCircle className="h-4 w-4" />
+      default:
+        return <Clock className="h-4 w-4" />
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'open':
+        return "destructive"
+      case 'in_progress':
+        return "secondary"
+      case 'resolved':
+        return "default"
+      case 'closed':
+        return "outline"
+      default:
+        return "secondary"
+    }
+  }
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority.toLowerCase()) {
+      case 'urgent':
+        return "destructive"
+      case 'high':
+        return "destructive"
+      case 'medium':
+        return "secondary"
+      case 'low':
+        return "outline"
+      default:
+        return "secondary"
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 60) {
+      return `${diffMins} minutes ago`
+    } else if (diffHours < 24) {
+      return `${diffHours} hours ago`
+    } else {
+      return `${diffDays} days ago`
+    }
+  }
+
+  const filteredTickets = tickets.filter(ticket => {
+    const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         ticket.number.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesPriority = priorityFilter === "all" || ticket.priority.toLowerCase() === priorityFilter.toLowerCase()
+    
+    return matchesSearch && matchesPriority
   })
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b">
-        <div className="flex h-16 items-center px-6">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">HD</span>
-            </div>
-            <h1 className="text-xl font-semibold">Helpdesk Dashboard</h1>
-          </div>
-          <div className="ml-auto flex items-center gap-4">
-            <Button variant="outline" size="sm">
-              Settings
-            </Button>
-            <Avatar className="h-8 w-8">
-              <AvatarImage src="/placeholder.svg?height=32&width=32" />
-              <AvatarFallback>JD</AvatarFallback>
-            </Avatar>
+  if (loading) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+          <div className="space-y-4">
+            {[1,2,3].map(i => (
+              <div key={i} className="h-24 bg-gray-200 rounded"></div>
+            ))}
           </div>
         </div>
       </div>
+    )
+  }
 
-      <main className="p-6">
-        <div className="space-y-6">
-          {/* Page Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Issues</h2>
-              <p className="text-muted-foreground">Manage and track all support issues</p>
-            </div>
+  return (
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Issues</h1>
+          <p className="text-muted-foreground">
+            Track and manage support tickets
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/issues/new">
+            <Plus className="mr-2 h-4 w-4" />
+            New Issue
+          </Link>
+        </Button>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search issues..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="OPEN">Open</SelectItem>
+              <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+              <SelectItem value="RESOLVED">Resolved</SelectItem>
+              <SelectItem value="CLOSED">Closed</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map(category => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Priority</SelectItem>
+              <SelectItem value="urgent">Urgent</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {filteredTickets.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Issues Found</h3>
+            <p className="text-muted-foreground text-center mb-4">
+              {tickets.length === 0 
+                ? "No issues have been created yet. Create your first issue to get started."
+                : "No issues match your current filters. Try adjusting your search criteria."
+              }
+            </p>
             <Button asChild>
               <Link href="/issues/new">
                 <Plus className="mr-2 h-4 w-4" />
-                New Issue
+                Create First Issue
               </Link>
             </Button>
-          </div>
-
-          {/* Filters */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search issues..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="open">Open</SelectItem>
-                      <SelectItem value="in-progress">In Progress</SelectItem>
-                      <SelectItem value="done">Done</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue placeholder="Priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Priority</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="outline" size="sm">
-                    <Filter className="h-4 w-4 mr-2" />
-                    More Filters
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Issues List */}
-          <div className="space-y-4">
-            {filteredIssues.map((issue) => {
-              const StatusIcon = statusIcons[issue.status as keyof typeof statusIcons]
-
-              return (
-                <Card key={issue.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 space-y-3">
-                        {/* Issue Header */}
-                        <div className="flex items-center gap-3">
-                          <Link
-                            href={`/issues/${issue.id}`}
-                            className="font-mono text-sm text-muted-foreground hover:text-primary"
-                          >
-                            {issue.id}
-                          </Link>
-                          <Badge
-                            variant="outline"
-                            className={priorityColors[issue.priority as keyof typeof priorityColors]}
-                          >
-                            {issue.priority}
-                          </Badge>
-                          <Badge variant="outline" className={statusColors[issue.status as keyof typeof statusColors]}>
-                            <StatusIcon className="w-3 h-3 mr-1" />
-                            {issue.status}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">{issue.organization}</span>
-                        </div>
-
-                        {/* Issue Title & Description */}
-                        <div>
-                          <Link href={`/issues/${issue.id}`} className="text-lg font-medium hover:text-primary">
-                            {issue.title}
-                          </Link>
-                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{issue.description}</p>
-                        </div>
-
-                        {/* Issue Meta */}
-                        <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            <span>Reported by {issue.reporter.name}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            <span>Created {issue.createdAt}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span>{issue.commentsCount} comments</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Assignee & Actions */}
-                      <div className="flex items-center gap-3">
-                        {issue.assignee ? (
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={issue.assignee.avatar || "/placeholder.svg"} />
-                              <AvatarFallback>
-                                {issue.assignee.name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="text-right">
-                              <p className="text-sm font-medium">{issue.assignee.name}</p>
-                              <p className="text-xs text-muted-foreground">Assignee</p>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Unassigned</p>
-                            <Button variant="outline" size="sm" className="mt-1 bg-transparent">
-                              Assign
-                            </Button>
-                          </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {filteredTickets.map((ticket) => (
+            <Card key={ticket.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Link 
+                        href={`/issues/${ticket.id}`}
+                        className="font-semibold text-lg hover:underline"
+                      >
+                        {ticket.title}
+                      </Link>
+                      <div className="flex items-center gap-2">
+                        {ticket.category && (
+                          <CategoryBadge category={ticket.category} />
                         )}
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <Badge variant={getStatusColor(ticket.status)} className="flex items-center gap-1">
+                          {getStatusIcon(ticket.status)}
+                          {ticket.status.replace('_', ' ')}
+                        </Badge>
+                        <Badge variant={getPriorityColor(ticket.priority)}>
+                          {ticket.priority}
+                        </Badge>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+                    
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                      <span className="font-mono font-medium">{ticket.number}</span>
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        {ticket.author.name || ticket.author.email}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {formatDate(ticket.createdAt)}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MessageSquare className="h-3 w-3" />
+                        {ticket._count.comments} comments
+                      </div>
+                    </div>
 
-          {filteredIssues.length === 0 && (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <div className="text-muted-foreground">
-                  <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-medium mb-2">No issues found</h3>
-                  <p>Try adjusting your search or filter criteria</p>
+                    {ticket.description && (
+                      <p className="text-muted-foreground line-clamp-2">
+                        {ticket.description}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <Button variant="ghost" size="sm">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
-          )}
+          ))}
         </div>
-      </main>
+      )}
     </div>
   )
 }

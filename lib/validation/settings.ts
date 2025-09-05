@@ -101,6 +101,21 @@ export const automationSettingsSchema = z.object({
   autoResponderMessage: z.string().optional(),
 })
 
+// Category validation schemas
+export const createCategorySchema = z.object({
+  name: z.string().min(1).max(50),
+  prefix: z.string().min(2).max(4).regex(/^[A-Z]{2,4}$/, "Prefix must be 2-4 uppercase letters"),
+  description: z.string().optional().nullable(),
+  color: z.string().regex(/^#([0-9a-fA-F]{6})$/, "Color must be a valid hex color").optional().nullable()
+})
+
+export const updateCategorySchema = z.object({
+  name: z.string().min(1).max(50).optional(),
+  description: z.string().optional().nullable(),
+  color: z.string().regex(/^#([0-9a-fA-F]{6})$/, "Color must be a valid hex color").optional().nullable(),
+  isActive: z.boolean().optional()
+})
+
 export type GeneralSettings = z.infer<typeof generalSettingsSchema>
 export type TicketSettings = z.infer<typeof ticketSettingsSchema>
 export type NotificationSettings = z.infer<typeof notificationSettingsSchema>
@@ -109,4 +124,6 @@ export type BrandTheme = z.infer<typeof brandThemeSchema>
 export type EmailConfig = z.infer<typeof emailConfigSchema>
 export type AdvancedSettings = z.infer<typeof advancedSettingsSchema>
 export type AutomationSettings = z.infer<typeof automationSettingsSchema>
+export type CreateCategory = z.infer<typeof createCategorySchema>
+export type UpdateCategory = z.infer<typeof updateCategorySchema>
 

@@ -3,7 +3,8 @@ import {
   Ticket, 
   Users, 
   Settings, 
-  BarChart3
+  BarChart3,
+  Tag
 } from "lucide-react"
 
 import {
@@ -28,6 +29,11 @@ const data = {
       title: "Tickets",
       url: "/issues",
       icon: Ticket,
+    },
+    {
+      title: "Categories",
+      url: "/categories",
+      icon: Tag,
     },
     {
       title: "Users",

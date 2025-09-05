@@ -26,6 +26,7 @@ model User {
 
 model Ticket {
   id          String       @id @default(cuid())
+  number      String       @unique // Auto-generated like "WEB-001"
   title       String
   description String?
   status      TicketStatus @default(OPEN)
@@ -37,9 +38,31 @@ model Ticket {
   authorId String
   author   User   @relation(fields: [authorId], references: [id])
 
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
   comments Comment[]
 
   @@map("tickets")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "Website", "Software", "Hardware"
+  prefix      String   @unique // e.g., "WEB", "SOF", "HWR"
+  description String?
+  color       String?  // Hex color for UI
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Auto-increment counter for this category
+  nextNumber  Int      @default(1)
+
+  // Relations
+  tickets     Ticket[]
+
+  @@map("categories")
 }
 
 model Comment {
