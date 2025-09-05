@@ -2,10 +2,13 @@
 
 # dependencies
 /node_modules
+node_modules/
 
 # next.js
 /.next/
+.next/
 /out/
+out/
 
 # production
 /build
@@ -25,3 +28,21 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# build artifacts
+dist/
+build/
+
+# cache directories
+.cache/
+.turbo/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

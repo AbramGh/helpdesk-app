@@ -95,11 +95,11 @@ export default function CustomizableDashboard({ className }: CustomizableDashboa
         }
 
         initializeDashboard()
-    }, [load])
+    }, []) // Remove load dependency to prevent infinite loop
 
     // Update layouts when instances change
     useEffect(() => {
-        setLayouts({
+        const newLayout = {
             lg: instances.map(inst => ({
                 i: inst.id,
                 x: inst.x,
@@ -111,6 +111,29 @@ export default function CustomizableDashboard({ className }: CustomizableDashboa
                 isDraggable: arrangeMode,
                 isResizable: arrangeMode,
             }))
+        }
+        
+        // Only update if the layout actually changed
+        setLayouts(prevLayouts => {
+            const prevLayout = prevLayouts.lg
+            const newLayoutItems = newLayout.lg
+            
+            // Check if layouts are different
+            if (prevLayout.length !== newLayoutItems.length) {
+                return newLayout
+            }
+            
+            for (let i = 0; i < prevLayout.length; i++) {
+                const prev = prevLayout[i]
+                const curr = newLayoutItems[i]
+                if (prev.i !== curr.i || prev.x !== curr.x || prev.y !== curr.y || 
+                    prev.w !== curr.w || prev.h !== curr.h || 
+                    prev.isDraggable !== curr.isDraggable || prev.isResizable !== curr.isResizable) {
+                    return newLayout
+                }
+            }
+            
+            return prevLayouts
         })
     }, [instances, arrangeMode])
 

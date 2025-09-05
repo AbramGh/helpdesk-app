@@ -1,12 +1,9 @@
 /**
- * Main Dashboard Page using the new CustomizableDashboard.
- * 
- * This page provides a fully customizable dashboard interface with
- * drag-and-drop widgets, live preview, and persistent layouts.
+ * Root page - redirects to dashboard
  */
 
-import CustomizableDashboard from "@/components/dashboard/CustomizableDashboard"
+import { redirect } from 'next/navigation'
 
-export default function DashboardPage() {
-  return <CustomizableDashboard />
+export default function HomePage() {
+  redirect('/dashboard')
 }
